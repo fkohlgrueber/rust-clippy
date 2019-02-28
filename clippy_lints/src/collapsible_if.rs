@@ -12,7 +12,6 @@
 //!
 //! This lint is **warn** by default
 
-use if_chain::if_chain;
 use rustc::lint::{EarlyContext, EarlyLintPass, LintArray, LintPass};
 use rustc::{declare_tool_lint, lint_array};
 use syntax::ast;
@@ -20,6 +19,8 @@ use syntax::ast;
 use crate::utils::sugg::Sugg;
 use crate::utils::{in_macro, snippet_block, snippet_block_with_applicability, span_lint_and_sugg, span_lint_and_then};
 use rustc_errors::Applicability;
+
+use pattern::pattern;
 
 /// **What it does:** Checks for nested `if` statements which can be collapsed
 /// by `&&`-combining their conditions and for `else { if ... }` expressions
@@ -84,27 +85,86 @@ impl LintPass for CollapsibleIf {
     }
 }
 
-impl EarlyLintPass for CollapsibleIf {
-    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
-        if !in_macro(expr.span) {
-            check_if(cx, expr)
-        }
-    }
+pattern!{
+    pattern_if_without_else: Expr = 
+        If(
+            _#check,
+            Block(
+                Expr( If(_#check_inner, _#content, ())#inner )
+                | Semi( If(_#check_inner, _#content, ())#inner ) 
+            )#then, 
+            ()
+        )
 }
 
-fn check_if(cx: &EarlyContext<'_>, expr: &ast::Expr) {
-    match expr.node {
-        ast::ExprKind::If(ref check, ref then, ref else_) => {
-            if let Some(ref else_) = *else_ {
-                check_collapsible_maybe_if_let(cx, else_);
-            } else {
-                check_collapsible_no_if_let(cx, expr, check, then);
-            }
-        },
-        ast::ExprKind::IfLet(_, _, _, Some(ref else_)) => {
-            check_collapsible_maybe_if_let(cx, else_);
-        },
-        _ => (),
+pattern!{
+    PAT_IF_2: Expr = 
+        If(
+            _, 
+            _, 
+            Block_(
+                Block(
+                    Expr((If(_, _, _?) | IfLet(_, _?))#else_) | 
+                    Semi((If(_, _, _?) | IfLet(_, _?))#else_)
+                )#block_inner
+            )#block
+        ) |
+        IfLet(
+            _, 
+            Block_(
+                Block(
+                    Expr((If(_, _, _?) | IfLet(_, _?))#else_) | 
+                    Semi((If(_, _, _?) | IfLet(_, _?))#else_)
+                )#block_inner
+            )#block
+        )
+}
+
+impl EarlyLintPass for CollapsibleIf {
+    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
+        if in_macro(expr.span) {
+            return;
+        }
+
+        match PAT_IF_WITHOUT_ELSE(expr) {
+            Some(res) => {
+                if !block_starts_with_comment(cx, res.then) && expr.span.ctxt() == res.inner.span.ctxt() {
+                    span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
+                        let lhs = Sugg::ast(cx, res.check, "..");
+                        let rhs = Sugg::ast(cx, res.check_inner, "..");
+                        db.span_suggestion(
+                            expr.span,
+                            "try",
+                            format!(
+                                "if {} {}",
+                                lhs.and(&rhs),
+                                snippet_block(cx, res.content.span, ".."),
+                            ),
+                            Applicability::MachineApplicable, // snippet
+                        );
+                    });
+                }
+            },
+            _ => ()
+        }
+
+        match PAT_IF_2(expr) {
+            Some(res) => {
+                if !block_starts_with_comment(cx, res.block_inner) && !in_macro(res.else_.span){
+                    let mut applicability = Applicability::MachineApplicable;
+                    span_lint_and_sugg(
+                        cx,
+                        COLLAPSIBLE_IF,
+                        res.block.span,
+                        "this `else { if .. }` block can be collapsed",
+                        "try",
+                        snippet_block_with_applicability(cx, res.else_.span, "..", &mut applicability).into_owned(),
+                        applicability,
+                    );
+                }
+            },
+            _ => ()
+        };
     }
 }
 
@@ -114,71 +174,4 @@ fn block_starts_with_comment(cx: &EarlyContext<'_>, expr: &ast::Block) -> bool {
         .trim_start_matches(|c: char| c.is_whitespace() || c == '{')
         .to_owned();
     trimmed_block_text.starts_with("//") || trimmed_block_text.starts_with("/*")
-}
-
-fn check_collapsible_maybe_if_let(cx: &EarlyContext<'_>, else_: &ast::Expr) {
-    if_chain! {
-        if let ast::ExprKind::Block(ref block, _) = else_.node;
-        if !block_starts_with_comment(cx, block);
-        if let Some(else_) = expr_block(block);
-        if !in_macro(else_.span);
-        then {
-            match else_.node {
-                ast::ExprKind::If(..) | ast::ExprKind::IfLet(..) => {
-                    let mut applicability = Applicability::MachineApplicable;
-                    span_lint_and_sugg(
-                        cx,
-                        COLLAPSIBLE_IF,
-                        block.span,
-                        "this `else { if .. }` block can be collapsed",
-                        "try",
-                        snippet_block_with_applicability(cx, else_.span, "..", &mut applicability).into_owned(),
-                        applicability,
-                    );
-                }
-                _ => (),
-            }
-        }
-    }
-}
-
-fn check_collapsible_no_if_let(cx: &EarlyContext<'_>, expr: &ast::Expr, check: &ast::Expr, then: &ast::Block) {
-    if_chain! {
-        if !block_starts_with_comment(cx, then);
-        if let Some(inner) = expr_block(then);
-        if let ast::ExprKind::If(ref check_inner, ref content, None) = inner.node;
-        then {
-            if expr.span.ctxt() != inner.span.ctxt() {
-                return;
-            }
-            span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
-                let lhs = Sugg::ast(cx, check, "..");
-                let rhs = Sugg::ast(cx, check_inner, "..");
-                db.span_suggestion(
-                    expr.span,
-                    "try",
-                    format!(
-                        "if {} {}",
-                        lhs.and(&rhs),
-                        snippet_block(cx, content.span, ".."),
-                    ),
-                    Applicability::MachineApplicable, // snippet
-                );
-            });
-        }
-    }
-}
-
-/// If the block contains only one expression, return it.
-fn expr_block(block: &ast::Block) -> Option<&ast::Expr> {
-    let mut it = block.stmts.iter();
-
-    if let (Some(stmt), None) = (it.next(), it.next()) {
-        match stmt.node {
-            ast::StmtKind::Expr(ref expr) | ast::StmtKind::Semi(ref expr) => Some(expr),
-            _ => None,
-        }
-    } else {
-        None
-    }
 }
