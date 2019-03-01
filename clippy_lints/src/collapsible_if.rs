@@ -86,7 +86,7 @@ impl LintPass for CollapsibleIf {
 }
 
 pattern!{
-    pattern_if_without_else: Expr = 
+    PAT_IF_WITHOUT_ELSE: Expr = 
         If(
             _#check,
             Block(
