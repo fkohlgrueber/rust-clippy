@@ -11,74 +11,74 @@ use rustc::{declare_tool_lint, lint_array};
 use rustc_errors::Applicability;
 use syntax::source_map::Span;
 
-/// **What it does:** Checks for types with a `fn new() -> Self` method and no
-/// implementation of
-/// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html).
-///
-/// It detects both the case when a manual
-/// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html)
-/// implementation is required and also when it can be created with
-/// `#[derive(Default)]`
-///
-/// **Why is this bad?** The user might expect to be able to use
-/// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) as the
-/// type can be constructed without arguments.
-///
-/// **Known problems:** Hopefully none.
-///
-/// **Example:**
-///
-/// ```rust
-/// struct Foo(Bar);
-///
-/// impl Foo {
-///     fn new() -> Self {
-///         Foo(Bar::new())
-///     }
-/// }
-/// ```
-///
-/// Instead, use:
-///
-/// ```rust
-/// struct Foo(Bar);
-///
-/// impl Default for Foo {
-///     fn default() -> Self {
-///         Foo(Bar::new())
-///     }
-/// }
-/// ```
-///
-/// Or, if
-/// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html)
-/// can be derived by `#[derive(Default)]`:
-///
-/// ```rust
-/// struct Foo;
-///
-/// impl Foo {
-///     fn new() -> Self {
-///         Foo
-///     }
-/// }
-/// ```
-///
-/// Instead, use:
-///
-/// ```rust
-/// #[derive(Default)]
-/// struct Foo;
-///
-/// impl Foo {
-///     fn new() -> Self {
-///         Foo
-///     }
-/// }
-/// ```
-///
-/// You can also have `new()` call `Default::default()`.
 declare_clippy_lint! {
+    /// **What it does:** Checks for types with a `fn new() -> Self` method and no
+    /// implementation of
+    /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html).
+    ///
+    /// It detects both the case when a manual
+    /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html)
+    /// implementation is required and also when it can be created with
+    /// `#[derive(Default)]`
+    ///
+    /// **Why is this bad?** The user might expect to be able to use
+    /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) as the
+    /// type can be constructed without arguments.
+    ///
+    /// **Known problems:** Hopefully none.
+    ///
+    /// **Example:**
+    ///
+    /// ```ignore
+    /// struct Foo(Bar);
+    ///
+    /// impl Foo {
+    ///     fn new() -> Self {
+    ///         Foo(Bar::new())
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Instead, use:
+    ///
+    /// ```ignore
+    /// struct Foo(Bar);
+    ///
+    /// impl Default for Foo {
+    ///     fn default() -> Self {
+    ///         Foo(Bar::new())
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Or, if
+    /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html)
+    /// can be derived by `#[derive(Default)]`:
+    ///
+    /// ```rust
+    /// struct Foo;
+    ///
+    /// impl Foo {
+    ///     fn new() -> Self {
+    ///         Foo
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Instead, use:
+    ///
+    /// ```rust
+    /// #[derive(Default)]
+    /// struct Foo;
+    ///
+    /// impl Foo {
+    ///     fn new() -> Self {
+    ///         Foo
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// You can also have `new()` call `Default::default()`.
     pub NEW_WITHOUT_DEFAULT,
     style,
     "`fn new() -> Self` method without `Default` implementation"
@@ -133,7 +133,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for NewWithoutDefault {
                             let self_did = cx.tcx.hir().local_def_id_from_hir_id(cx.tcx.hir().get_parent_item(id));
                             let self_ty = cx.tcx.type_of(self_did);
                             if_chain! {
-                                if same_tys(cx, self_ty, return_ty(cx, node_id));
+                                if same_tys(cx, self_ty, return_ty(cx, id));
                                 if let Some(default_trait_id) = get_trait_def_id(cx, &paths::DEFAULT_TRAIT);
                                 then {
                                     if self.impling_types.is_none() {

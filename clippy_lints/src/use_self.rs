@@ -9,36 +9,36 @@ use rustc::{declare_tool_lint, lint_array};
 use rustc_errors::Applicability;
 use syntax_pos::symbol::keywords::SelfUpper;
 
-/// **What it does:** Checks for unnecessary repetition of structure name when a
-/// replacement with `Self` is applicable.
-///
-/// **Why is this bad?** Unnecessary repetition. Mixed use of `Self` and struct
-/// name
-/// feels inconsistent.
-///
-/// **Known problems:**
-/// - False positive when using associated types (#2843)
-/// - False positives in some situations when using generics (#3410)
-///
-/// **Example:**
-/// ```rust
-/// struct Foo {}
-/// impl Foo {
-///     fn new() -> Foo {
-///         Foo {}
-///     }
-/// }
-/// ```
-/// could be
-/// ```rust
-/// struct Foo {}
-/// impl Foo {
-///     fn new() -> Self {
-///         Self {}
-///     }
-/// }
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks for unnecessary repetition of structure name when a
+    /// replacement with `Self` is applicable.
+    ///
+    /// **Why is this bad?** Unnecessary repetition. Mixed use of `Self` and struct
+    /// name
+    /// feels inconsistent.
+    ///
+    /// **Known problems:**
+    /// - False positive when using associated types (#2843)
+    /// - False positives in some situations when using generics (#3410)
+    ///
+    /// **Example:**
+    /// ```rust
+    /// struct Foo {}
+    /// impl Foo {
+    ///     fn new() -> Foo {
+    ///         Foo {}
+    ///     }
+    /// }
+    /// ```
+    /// could be
+    /// ```rust
+    /// struct Foo {}
+    /// impl Foo {
+    ///     fn new() -> Self {
+    ///         Self {}
+    ///     }
+    /// }
+    /// ```
     pub USE_SELF,
     pedantic,
     "Unnecessary structure name repetition whereas `Self` is applicable"
@@ -137,7 +137,7 @@ fn check_trait_method_impl_decl<'a, 'tcx: 'a>(
     let trait_method_sig = cx.tcx.fn_sig(trait_method.def_id);
     let trait_method_sig = cx.tcx.erase_late_bound_regions(&trait_method_sig);
 
-    let impl_method_def_id = cx.tcx.hir().local_def_id(impl_item.id);
+    let impl_method_def_id = cx.tcx.hir().local_def_id_from_hir_id(impl_item.hir_id);
     let impl_method_sig = cx.tcx.fn_sig(impl_method_def_id);
     let impl_method_sig = cx.tcx.erase_late_bound_regions(&impl_method_sig);
 
@@ -192,7 +192,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for UseSelf {
                         item_path,
                         cx,
                     };
-                    let impl_def_id = cx.tcx.hir().local_def_id(item.id);
+                    let impl_def_id = cx.tcx.hir().local_def_id_from_hir_id(item.hir_id);
                     let impl_trait_ref = cx.tcx.impl_trait_ref(impl_def_id);
 
                     if let Some(impl_trait_ref) = impl_trait_ref {

@@ -6,33 +6,32 @@ use rustc::middle::expr_use_visitor::*;
 use rustc::middle::mem_categorization::{cmt_, Categorization};
 use rustc::ty::layout::LayoutOf;
 use rustc::ty::{self, Ty};
-use rustc::util::nodemap::NodeSet;
+use rustc::util::nodemap::HirIdSet;
 use rustc::{declare_tool_lint, lint_array};
-use syntax::ast::NodeId;
 use syntax::source_map::Span;
 
 pub struct Pass {
     pub too_large_for_stack: u64,
 }
 
-/// **What it does:** Checks for usage of `Box<T>` where an unboxed `T` would
-/// work fine.
-///
-/// **Why is this bad?** This is an unnecessary allocation, and bad for
-/// performance. It is only necessary to allocate if you wish to move the box
-/// into something.
-///
-/// **Known problems:** None.
-///
-/// **Example:**
-/// ```rust
-/// fn main() {
-///     let x = Box::new(1);
-///     foo(*x);
-///     println!("{}", *x);
-/// }
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks for usage of `Box<T>` where an unboxed `T` would
+    /// work fine.
+    ///
+    /// **Why is this bad?** This is an unnecessary allocation, and bad for
+    /// performance. It is only necessary to allocate if you wish to move the box
+    /// into something.
+    ///
+    /// **Known problems:** None.
+    ///
+    /// **Example:**
+    /// ```rust
+    /// fn main() {
+    ///     let x = Box::new(1);
+    ///     foo(*x);
+    ///     println!("{}", *x);
+    /// }
+    /// ```
     pub BOXED_LOCAL,
     perf,
     "using `Box<T>` where unnecessary"
@@ -44,7 +43,7 @@ fn is_non_trait_box(ty: Ty<'_>) -> bool {
 
 struct EscapeDelegate<'a, 'tcx: 'a> {
     cx: &'a LateContext<'a, 'tcx>,
-    set: NodeSet,
+    set: HirIdSet,
     too_large_for_stack: u64,
 }
 
@@ -80,7 +79,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for Pass {
 
         let mut v = EscapeDelegate {
             cx,
-            set: NodeSet::default(),
+            set: HirIdSet::default(),
             too_large_for_stack: self.too_large_for_stack,
         };
 
@@ -92,7 +91,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for Pass {
             span_lint(
                 cx,
                 BOXED_LOCAL,
-                cx.tcx.hir().span(node),
+                cx.tcx.hir().span_by_hir_id(node),
                 "local variable doesn't need to be boxed here",
             );
         }
@@ -111,13 +110,13 @@ impl<'a, 'tcx> Delegate<'tcx> for EscapeDelegate<'a, 'tcx> {
     fn matched_pat(&mut self, _: &Pat, _: &cmt_<'tcx>, _: MatchMode) {}
     fn consume_pat(&mut self, consume_pat: &Pat, cmt: &cmt_<'tcx>, _: ConsumeMode) {
         let map = &self.cx.tcx.hir();
-        if map.is_argument(consume_pat.id) {
+        if map.is_argument(map.hir_to_node_id(consume_pat.hir_id)) {
             // Skip closure arguments
-            if let Some(Node::Expr(..)) = map.find(map.get_parent_node(consume_pat.id)) {
+            if let Some(Node::Expr(..)) = map.find_by_hir_id(map.get_parent_node_by_hir_id(consume_pat.hir_id)) {
                 return;
             }
             if is_non_trait_box(cmt.ty) && !self.is_large_box(cmt.ty) {
-                self.set.insert(consume_pat.id);
+                self.set.insert(consume_pat.hir_id);
             }
             return;
         }
@@ -129,7 +128,7 @@ impl<'a, 'tcx> Delegate<'tcx> for EscapeDelegate<'a, 'tcx> {
                         if let ExprKind::Box(..) = ex.node {
                             if is_non_trait_box(cmt.ty) && !self.is_large_box(cmt.ty) {
                                 // let x = box (...)
-                                self.set.insert(consume_pat.id);
+                                self.set.insert(consume_pat.hir_id);
                             }
                             // TODO Box::new
                             // TODO vec![]
@@ -143,7 +142,7 @@ impl<'a, 'tcx> Delegate<'tcx> for EscapeDelegate<'a, 'tcx> {
             if self.set.contains(&lid) {
                 // let y = x where x is known
                 // remove x, insert y
-                self.set.insert(consume_pat.id);
+                self.set.insert(consume_pat.hir_id);
                 self.set.remove(&lid);
             }
         }
@@ -177,7 +176,7 @@ impl<'a, 'tcx> Delegate<'tcx> for EscapeDelegate<'a, 'tcx> {
             }
         }
     }
-    fn decl_without_init(&mut self, _: NodeId, _: Span) {}
+    fn decl_without_init(&mut self, _: HirId, _: Span) {}
     fn mutate(&mut self, _: HirId, _: Span, _: &cmt_<'tcx>, _: MutateMode) {}
 }
 

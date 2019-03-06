@@ -4,25 +4,25 @@ use rustc::hir::*;
 use rustc::lint::{LateContext, LateLintPass, LintArray, LintPass};
 use rustc::{declare_tool_lint, lint_array};
 
-/// **What it does:** Checks for manual re-implementations of `PartialEq::ne`.
-///
-/// **Why is this bad?** `PartialEq::ne` is required to always return the
-/// negated result of `PartialEq::eq`, which is exactly what the default
-/// implementation does. Therefore, there should never be any need to
-/// re-implement it.
-///
-/// **Known problems:** None.
-///
-/// **Example:**
-/// ```rust
-/// struct Foo;
-///
-/// impl PartialEq for Foo {
-///    fn eq(&self, other: &Foo) -> bool { ... }
-///    fn ne(&self, other: &Foo) -> bool { !(self == other) }
-/// }
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks for manual re-implementations of `PartialEq::ne`.
+    ///
+    /// **Why is this bad?** `PartialEq::ne` is required to always return the
+    /// negated result of `PartialEq::eq`, which is exactly what the default
+    /// implementation does. Therefore, there should never be any need to
+    /// re-implement it.
+    ///
+    /// **Known problems:** None.
+    ///
+    /// **Example:**
+    /// ```rust
+    /// struct Foo;
+    ///
+    /// impl PartialEq for Foo {
+    ///    fn eq(&self, other: &Foo) -> bool { ... }
+    ///    fn ne(&self, other: &Foo) -> bool { !(self == other) }
+    /// }
+    /// ```
     pub PARTIALEQ_NE_IMPL,
     complexity,
     "re-implementing `PartialEq::ne`"
@@ -51,11 +51,10 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for Pass {
             then {
                 for impl_item in impl_items {
                     if impl_item.ident.name == "ne" {
-                        let hir_id = cx.tcx.hir().node_to_hir_id(impl_item.id.node_id);
                         span_lint_node(
                             cx,
                             PARTIALEQ_NE_IMPL,
-                            hir_id,
+                            impl_item.id.hir_id,
                             impl_item.span,
                             "re-implementing `PartialEq::ne` is unnecessary",
                         );

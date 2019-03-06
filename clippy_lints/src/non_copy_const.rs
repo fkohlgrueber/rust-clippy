@@ -14,69 +14,69 @@ use rustc_typeck::hir_ty_to_ty;
 use std::ptr;
 use syntax_pos::{Span, DUMMY_SP};
 
-/// **What it does:** Checks for declaration of `const` items which is interior
-/// mutable (e.g. contains a `Cell`, `Mutex`, `AtomicXxxx` etc).
-///
-/// **Why is this bad?** Consts are copied everywhere they are referenced, i.e.
-/// every time you refer to the const a fresh instance of the `Cell` or `Mutex`
-/// or `AtomicXxxx` will be created, which defeats the whole purpose of using
-/// these types in the first place.
-///
-/// The `const` should better be replaced by a `static` item if a global
-/// variable is wanted, or replaced by a `const fn` if a constructor is wanted.
-///
-/// **Known problems:** A "non-constant" const item is a legacy way to supply an
-/// initialized value to downstream `static` items (e.g. the
-/// `std::sync::ONCE_INIT` constant). In this case the use of `const` is legit,
-/// and this lint should be suppressed.
-///
-/// **Example:**
-/// ```rust
-/// use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-///
-/// // Bad.
-/// const CONST_ATOM: AtomicUsize = AtomicUsize::new(12);
-/// CONST_ATOM.store(6, SeqCst); // the content of the atomic is unchanged
-/// assert_eq!(CONST_ATOM.load(SeqCst), 12); // because the CONST_ATOM in these lines are distinct
-///
-/// // Good.
-/// static STATIC_ATOM: AtomicUsize = AtomicUsize::new(15);
-/// STATIC_ATOM.store(9, SeqCst);
-/// assert_eq!(STATIC_ATOM.load(SeqCst), 9); // use a `static` item to refer to the same instance
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks for declaration of `const` items which is interior
+    /// mutable (e.g. contains a `Cell`, `Mutex`, `AtomicXxxx` etc).
+    ///
+    /// **Why is this bad?** Consts are copied everywhere they are referenced, i.e.
+    /// every time you refer to the const a fresh instance of the `Cell` or `Mutex`
+    /// or `AtomicXxxx` will be created, which defeats the whole purpose of using
+    /// these types in the first place.
+    ///
+    /// The `const` should better be replaced by a `static` item if a global
+    /// variable is wanted, or replaced by a `const fn` if a constructor is wanted.
+    ///
+    /// **Known problems:** A "non-constant" const item is a legacy way to supply an
+    /// initialized value to downstream `static` items (e.g. the
+    /// `std::sync::ONCE_INIT` constant). In this case the use of `const` is legit,
+    /// and this lint should be suppressed.
+    ///
+    /// **Example:**
+    /// ```rust
+    /// use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    ///
+    /// // Bad.
+    /// const CONST_ATOM: AtomicUsize = AtomicUsize::new(12);
+    /// CONST_ATOM.store(6, SeqCst); // the content of the atomic is unchanged
+    /// assert_eq!(CONST_ATOM.load(SeqCst), 12); // because the CONST_ATOM in these lines are distinct
+    ///
+    /// // Good.
+    /// static STATIC_ATOM: AtomicUsize = AtomicUsize::new(15);
+    /// STATIC_ATOM.store(9, SeqCst);
+    /// assert_eq!(STATIC_ATOM.load(SeqCst), 9); // use a `static` item to refer to the same instance
+    /// ```
     pub DECLARE_INTERIOR_MUTABLE_CONST,
     correctness,
     "declaring const with interior mutability"
 }
 
-/// **What it does:** Checks if `const` items which is interior mutable (e.g.
-/// contains a `Cell`, `Mutex`, `AtomicXxxx` etc) has been borrowed directly.
-///
-/// **Why is this bad?** Consts are copied everywhere they are referenced, i.e.
-/// every time you refer to the const a fresh instance of the `Cell` or `Mutex`
-/// or `AtomicXxxx` will be created, which defeats the whole purpose of using
-/// these types in the first place.
-///
-/// The `const` value should be stored inside a `static` item.
-///
-/// **Known problems:** None
-///
-/// **Example:**
-/// ```rust
-/// use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-/// const CONST_ATOM: AtomicUsize = AtomicUsize::new(12);
-///
-/// // Bad.
-/// CONST_ATOM.store(6, SeqCst); // the content of the atomic is unchanged
-/// assert_eq!(CONST_ATOM.load(SeqCst), 12); // because the CONST_ATOM in these lines are distinct
-///
-/// // Good.
-/// static STATIC_ATOM: AtomicUsize = CONST_ATOM;
-/// STATIC_ATOM.store(9, SeqCst);
-/// assert_eq!(STATIC_ATOM.load(SeqCst), 9); // use a `static` item to refer to the same instance
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks if `const` items which is interior mutable (e.g.
+    /// contains a `Cell`, `Mutex`, `AtomicXxxx` etc) has been borrowed directly.
+    ///
+    /// **Why is this bad?** Consts are copied everywhere they are referenced, i.e.
+    /// every time you refer to the const a fresh instance of the `Cell` or `Mutex`
+    /// or `AtomicXxxx` will be created, which defeats the whole purpose of using
+    /// these types in the first place.
+    ///
+    /// The `const` value should be stored inside a `static` item.
+    ///
+    /// **Known problems:** None
+    ///
+    /// **Example:**
+    /// ```rust
+    /// use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    /// const CONST_ATOM: AtomicUsize = AtomicUsize::new(12);
+    ///
+    /// // Bad.
+    /// CONST_ATOM.store(6, SeqCst); // the content of the atomic is unchanged
+    /// assert_eq!(CONST_ATOM.load(SeqCst), 12); // because the CONST_ATOM in these lines are distinct
+    ///
+    /// // Good.
+    /// static STATIC_ATOM: AtomicUsize = CONST_ATOM;
+    /// STATIC_ATOM.store(9, SeqCst);
+    /// assert_eq!(STATIC_ATOM.load(SeqCst), 9); // use a `static` item to refer to the same instance
+    /// ```
     pub BORROW_INTERIOR_MUTABLE_CONST,
     correctness,
     "referencing const with interior mutability"
@@ -177,8 +177,8 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for NonCopyConst {
 
     fn check_impl_item(&mut self, cx: &LateContext<'a, 'tcx>, impl_item: &'tcx ImplItem) {
         if let ImplItemKind::Const(hir_ty, ..) = &impl_item.node {
-            let item_node_id = cx.tcx.hir().get_parent_node(impl_item.id);
-            let item = cx.tcx.hir().expect_item(item_node_id);
+            let item_hir_id = cx.tcx.hir().get_parent_node_by_hir_id(impl_item.hir_id);
+            let item = cx.tcx.hir().expect_item_by_hir_id(item_hir_id);
             // ensure the impl is an inherent impl.
             if let ItemKind::Impl(_, _, _, _, None, _, _) = item.node {
                 let ty = hir_ty_to_ty(cx.tcx, hir_ty);

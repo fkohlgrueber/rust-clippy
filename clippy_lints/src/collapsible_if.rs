@@ -22,51 +22,51 @@ use rustc_errors::Applicability;
 
 use pattern::pattern;
 
-/// **What it does:** Checks for nested `if` statements which can be collapsed
-/// by `&&`-combining their conditions and for `else { if ... }` expressions
-/// that
-/// can be collapsed to `else if ...`.
-///
-/// **Why is this bad?** Each `if`-statement adds one level of nesting, which
-/// makes code look more complex than it really is.
-///
-/// **Known problems:** None.
-///
-/// **Example:**
-/// ```rust,ignore
-/// if x {
-///     if y {
-///         …
-///     }
-/// }
-///
-/// // or
-///
-/// if x {
-///     …
-/// } else {
-///     if y {
-///         …
-///     }
-/// }
-/// ```
-///
-/// Should be written:
-///
-/// ```rust.ignore
-/// if x && y {
-///     …
-/// }
-///
-/// // or
-///
-/// if x {
-///     …
-/// } else if y {
-///     …
-/// }
-/// ```
 declare_clippy_lint! {
+    /// **What it does:** Checks for nested `if` statements which can be collapsed
+    /// by `&&`-combining their conditions and for `else { if ... }` expressions
+    /// that
+    /// can be collapsed to `else if ...`.
+    ///
+    /// **Why is this bad?** Each `if`-statement adds one level of nesting, which
+    /// makes code look more complex than it really is.
+    ///
+    /// **Known problems:** None.
+    ///
+    /// **Example:**
+    /// ```rust,ignore
+    /// if x {
+    ///     if y {
+    ///         …
+    ///     }
+    /// }
+    ///
+    /// // or
+    ///
+    /// if x {
+    ///     …
+    /// } else {
+    ///     if y {
+    ///         …
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Should be written:
+    ///
+    /// ```rust.ignore
+    /// if x && y {
+    ///     …
+    /// }
+    ///
+    /// // or
+    ///
+    /// if x {
+    ///     …
+    /// } else if y {
+    ///     …
+    /// }
+    /// ```
     pub COLLAPSIBLE_IF,
     style,
     "`if`s that can be collapsed (e.g. `if x { if y { ... } }` and `else { if x { ... } }`)"
