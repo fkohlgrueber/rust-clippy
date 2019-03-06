@@ -17,7 +17,7 @@ keywords = ["clippy", "lint", "plugin"]
 edition = "2018"
 
 [dependencies]
-pattern = { path = "../../parse-pattern/pattern" }
+pattern = { path = "../../pattern-matching/pattern" }
 cargo_metadata = "0.7.1"
 itertools = "0.8"
 lazy_static = "1.0.2"
