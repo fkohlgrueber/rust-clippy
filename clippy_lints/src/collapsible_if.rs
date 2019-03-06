@@ -86,7 +86,7 @@ impl LintPass for CollapsibleIf {
 }
 
 pattern!{
-    PAT_IF_WITHOUT_ELSE: Expr = 
+    pat_if_without_else: Expr = 
         If(
             _#check,
             Block(
@@ -98,7 +98,7 @@ pattern!{
 }
 
 pattern!{
-    PAT_IF_2: Expr = 
+    pat_if_else: Expr = 
         If(
             _, 
             _, 
@@ -126,45 +126,39 @@ impl EarlyLintPass for CollapsibleIf {
             return;
         }
 
-        match PAT_IF_WITHOUT_ELSE(expr) {
-            Some(res) => {
-                if !block_starts_with_comment(cx, res.then) && expr.span.ctxt() == res.inner.span.ctxt() {
-                    span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
-                        let lhs = Sugg::ast(cx, res.check, "..");
-                        let rhs = Sugg::ast(cx, res.check_inner, "..");
-                        db.span_suggestion(
-                            expr.span,
-                            "try",
-                            format!(
-                                "if {} {}",
-                                lhs.and(&rhs),
-                                snippet_block(cx, res.content.span, ".."),
-                            ),
-                            Applicability::MachineApplicable, // snippet
-                        );
-                    });
-                }
-            },
-            _ => ()
-        }
-
-        match PAT_IF_2(expr) {
-            Some(res) => {
-                if !block_starts_with_comment(cx, res.block_inner) && !in_macro(res.else_.span){
-                    let mut applicability = Applicability::MachineApplicable;
-                    span_lint_and_sugg(
-                        cx,
-                        COLLAPSIBLE_IF,
-                        res.block.span,
-                        "this `else { if .. }` block can be collapsed",
+        if let Some(result) = pat_if_without_else(expr) {
+            if !block_starts_with_comment(cx, result.then) && expr.span.ctxt() == result.inner.span.ctxt() {
+                span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
+                    let lhs = Sugg::ast(cx, result.check, "..");
+                    let rhs = Sugg::ast(cx, result.check_inner, "..");
+                    db.span_suggestion(
+                        expr.span,
                         "try",
-                        snippet_block_with_applicability(cx, res.else_.span, "..", &mut applicability).into_owned(),
-                        applicability,
+                        format!(
+                            "if {} {}",
+                            lhs.and(&rhs),
+                            snippet_block(cx, result.content.span, ".."),
+                        ),
+                        Applicability::MachineApplicable, // snippet
                     );
-                }
-            },
-            _ => ()
-        };
+                });
+            }
+        }
+        
+        if let Some(result) = pat_if_else(expr) {
+            if !block_starts_with_comment(cx, result.block_inner) && !in_macro(result.else_.span){
+                let mut applicability = Applicability::MachineApplicable;
+                span_lint_and_sugg(
+                    cx,
+                    COLLAPSIBLE_IF,
+                    result.block.span,
+                    "this `else { if .. }` block can be collapsed",
+                    "try",
+                    snippet_block_with_applicability(cx, result.else_.span, "..", &mut applicability).into_owned(),
+                    applicability,
+                );
+            }
+        }
     }
 }
 
