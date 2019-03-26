@@ -59,11 +59,11 @@ The code above matches if expressions that contain only another if expression (w
 
 Following the motivation above, the first goal this RFC is to **simplify writing and reading lints**. 
 
-The second part of the motivation is Clippy's dependence on unstable compiler-internal data structures. Clippy lints are currently written against the compiler's AST / HIR which means that even small changes in these data structures might break a lot of lints. The second goal of this RFC is to **make lints independant of the compiler's AST / HIR data structures**.
+The second part of the motivation is Clippy's dependence on unstable compiler-internal data structures. Clippy lints are currently written against the compiler's AST / HIR which means that even small changes in these data structures might break a lot of lints. The second goal of this RFC is to **make lints independent of the compiler's AST / HIR data structures**.
 
 # Approach
 
-A lot of complexity in writing lints currently seems to come from having to manually implement the matching logic (see code samples above). It's an imparative style that describes *how* to match a syntax tree node instead of specifying *what* should be matched against declaratively. In other areas, it's common to use declarative patterns to describe desired information and let the implementation do the actual matching. A well-known example of this approach are [regular expressions](https://en.wikipedia.org/wiki/Regular_expression). Instead of writing code that detects certain character sequences, one can describe a search pattern using a domain-specific language and search for matches using that pattern. The advantage of using a declarative domain-specific language is that its limited domain (e.g. matching character sequences in the case of regular expressions) allows to express entities in that domain in a very natural and expressive way.
+A lot of complexity in writing lints currently seems to come from having to manually implement the matching logic (see code samples above). It's an imperative style that describes *how* to match a syntax tree node instead of specifying *what* should be matched against declaratively. In other areas, it's common to use declarative patterns to describe desired information and let the implementation do the actual matching. A well-known example of this approach are [regular expressions](https://en.wikipedia.org/wiki/Regular_expression). Instead of writing code that detects certain character sequences, one can describe a search pattern using a domain-specific language and search for matches using that pattern. The advantage of using a declarative domain-specific language is that its limited domain (e.g. matching character sequences in the case of regular expressions) allows to express entities in that domain in a very natural and expressive way.
 
 While regular expressions are very useful when searching for patterns in flat character sequences, they cannot easily be applied to hierarchical data structures like syntax trees. This RFC therefore proposes a pattern matching system that is inspired by regular expressions and designed for hierarchical syntax trees.
 
@@ -107,7 +107,7 @@ The `pattern!` macro call expands to a function `my_pattern` that expects a synt
 
 ## Pattern syntax
 
-The following examples demonstate the pattern syntax:
+The following examples demonstrate the pattern syntax:
 
 
 #### Any (`_`)
@@ -231,7 +231,7 @@ pattern!{
     // matches if expressions that **may or may not** have an else block
     // Attn: `If(_, _, _)` matches only ifs that **have** an else block
     //
-    //              | if with else block | if witout else block
+    //              | if with else block | if without else block
     // If(_, _, _)  |       match        |       no match
     // If(_, _, _?) |       match        |        match
     // If(_, _, ()) |      no match      |        match
@@ -488,7 +488,7 @@ Valid patterns depend on the *PatternTree* definitions. For example, the pattern
 
 ## The IsMatch Trait
 
-The pattern syntax and the *PatternTree* are independant of specific syntax tree implementations (rust ast / hir, syn, ...). When looking at the different pattern examples in the previous sections, it can be seen that the patterns don't contain any information specific to a certain syntax tree implementation. In contrast, Clippy lints currently match against ast / hir syntax tree nodes and therefore directly depend on their implementation.
+The pattern syntax and the *PatternTree* are independent of specific syntax tree implementations (rust ast / hir, syn, ...). When looking at the different pattern examples in the previous sections, it can be seen that the patterns don't contain any information specific to a certain syntax tree implementation. In contrast, Clippy lints currently match against ast / hir syntax tree nodes and therefore directly depend on their implementation.
 
 The connection between the *PatternTree* and specific syntax tree implementations is the `IsMatch` trait. It defines how to match *PatternTree* nodes against specific syntax tree nodes. A simplified implementation of the `IsMatch` trait is shown below:
 
@@ -593,7 +593,7 @@ if false {
 
 #### Problems
 
-Extending Rust syntax (which is quite complex by itself) with additional syntax needed for specifying patterns (alternations, sequences, repetisions, named submatches, ...) might become difficult to read and really hard to parse properly.
+Extending Rust syntax (which is quite complex by itself) with additional syntax needed for specifying patterns (alternations, sequences, repetitions, named submatches, ...) might become difficult to read and really hard to parse properly.
 
 For example, a pattern that matches a binary operation that has `0` on both sides might look like this:
 
@@ -687,7 +687,7 @@ pattern!{
 
 The difference compared to the currently proposed two-stage filtering is that using early filtering, the condition (`!in_macro(#then.span)` in this case) would be evaluated as soon as the `Block(_)#then` was matched.
 
-Another idea in this area would be to introduce a syntax for backreferences. They could be used to require that multiple parts of a pattern should match the same value. For example, the `assign_op_pattern` lint that searches for `a = a op b` and recommends changing it to `a op= b` requires that both occurrances of `a` are the same. Using `=#...` as syntax for backreferences, the lint could be implemented like this:
+Another idea in this area would be to introduce a syntax for backreferences. They could be used to require that multiple parts of a pattern should match the same value. For example, the `assign_op_pattern` lint that searches for `a = a op b` and recommends changing it to `a op= b` requires that both occurrences of `a` are the same. Using `=#...` as syntax for backreferences, the lint could be implemented like this:
 
 ```
 pattern!{
@@ -702,7 +702,7 @@ A lot of lints currently implement custom visitors that check whether any subtre
 
 #### Negation operator for alternatives
 
-For patterns like "a literal that is not a boolean literal" one currently needs to list all alternatives except the boolean case. Introducing a negation operator that allows to write `Lit(!Bool(_))` might be a good idea. This pattern would be eqivalent to `Lit( Char(_) | Int(_) )` (given that currently only three literal types are implemented).
+For patterns like "a literal that is not a boolean literal" one currently needs to list all alternatives except the boolean case. Introducing a negation operator that allows to write `Lit(!Bool(_))` might be a good idea. This pattern would be equivalent to `Lit( Char(_) | Int(_) )` (given that currently only three literal types are implemented).
 
 #### Functional composition
 
