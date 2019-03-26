@@ -59,7 +59,7 @@ The code above matches if expressions that contain only another if expression (w
 
 Following the motivation above, the first goal this RFC is to **simplify writing and reading lints**. 
 
-The second part of the motivation is clippy's dependence on unstable compiler-internal data structures. Clippy lints are currently written against the compiler's AST / HIR which means that even small changes in these data structures might break a lot of lints. The second goal of this RFC is to **make lints independant of the compiler's AST / HIR data structures**.
+The second part of the motivation is Clippy's dependence on unstable compiler-internal data structures. Clippy lints are currently written against the compiler's AST / HIR which means that even small changes in these data structures might break a lot of lints. The second goal of this RFC is to **make lints independant of the compiler's AST / HIR data structures**.
 
 # Approach
 
@@ -366,7 +366,7 @@ Named submatches are a **flat** namespace and this is intended. In the example a
 
 Using named subpatterns, users can write lints in two stages. First, a coarse selection of possible matches is produced by the pattern syntax. In the second stage, the named subpattern references can be used to do additional tests like asserting that a node hasn't been created as part of a macro expansion.
 
-## Implementing clippy lints using patterns
+## Implementing Clippy lints using patterns
 
 As a "real-world" example, I re-implemented the `collapsible_if` lint using patterns. The code can be found [here](https://github.com/fkohlgrueber/rust-clippy-pattern/blob/039b07ecccaf96d6aa7504f5126720d2c9cceddd/clippy_lints/src/collapsible_if.rs#L88-L163). The pattern-based version passes all test cases that were written for `collapsible_if`.
 
@@ -488,7 +488,7 @@ Valid patterns depend on the *PatternTree* definitions. For example, the pattern
 
 ## The IsMatch Trait
 
-The pattern syntax and the *PatternTree* are independant of specific syntax tree implementations (rust ast / hir, syn, ...). When looking at the different pattern examples in the previous sections, it can be seen that the patterns don't contain any information specific to a certain syntax tree implementation. In contrast, clippy lints currently match against ast / hir syntax tree nodes and therefore directly depend on their implementation.
+The pattern syntax and the *PatternTree* are independant of specific syntax tree implementations (rust ast / hir, syn, ...). When looking at the different pattern examples in the previous sections, it can be seen that the patterns don't contain any information specific to a certain syntax tree implementation. In contrast, Clippy lints currently match against ast / hir syntax tree nodes and therefore directly depend on their implementation.
 
 The connection between the *PatternTree* and specific syntax tree implementations is the `IsMatch` trait. It defines how to match *PatternTree* nodes against specific syntax tree nodes. A simplified implementation of the `IsMatch` trait is shown below:
 
@@ -545,7 +545,7 @@ fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
 }
 ```
 
-first matches against the pattern and then checks that the `then` block doesn't start with a comment. Using clippy's current approach, it's possible to check for these conditions earlier:
+first matches against the pattern and then checks that the `then` block doesn't start with a comment. Using Clippy's current approach, it's possible to check for these conditions earlier:
 
 ```
 fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
@@ -567,7 +567,7 @@ That being said, I don't see any conceptual limitations regarding pattern matchi
 
 #### Applicability
 
-Even though I'd expect that a lot of lints can be written using the proposed pattern syntax, it's unlikely that all lints can be expressed using patterns. I suspect that there will still be lints that need to be implemented by writing custom pattern matching code. This would lead to mix within clippy's codebase where some lints are implemented using patterns and others aren't. This inconsistency might be considered a drawback.
+Even though I'd expect that a lot of lints can be written using the proposed pattern syntax, it's unlikely that all lints can be expressed using patterns. I suspect that there will still be lints that need to be implemented by writing custom pattern matching code. This would lead to mix within Clippy's codebase where some lints are implemented using patterns and others aren't. This inconsistency might be considered a drawback.
 
 
 # Rationale and alternatives
@@ -575,7 +575,7 @@ Even though I'd expect that a lot of lints can be written using the proposed pat
 
 Specifying lints using syntax tree patterns has a couple of advantages compared to the current approach of manually writing matching code. First, syntax tree patterns allow users to describe patterns in a simple and expressive way. This makes it easier to write new lints for both novices and experts and also makes reading / modifying existing lints simpler. 
 
-Another advantage is that lints are independent of specific syntax tree implementations (e.g. AST / HIR, ...). When these syntax tree implementations change, only the `IsMatch` trait implementations need to be adapted and existing lints can remain unchanged. This also means that if the `IsMatch` trait implementations were integrated into the compiler, updating the `IsMatch` implementations would be required for the compiler to compile successfully. This could reduce the number of times clippy breaks because of changes in the compiler. Another advantage of the pattern's independence is that converting an `EarlyLintPass` lint into a `LatePassLint` wouldn't require rewriting the whole pattern matching code. In fact, the pattern might work just fine without any adaptions.
+Another advantage is that lints are independent of specific syntax tree implementations (e.g. AST / HIR, ...). When these syntax tree implementations change, only the `IsMatch` trait implementations need to be adapted and existing lints can remain unchanged. This also means that if the `IsMatch` trait implementations were integrated into the compiler, updating the `IsMatch` implementations would be required for the compiler to compile successfully. This could reduce the number of times Clippy breaks because of changes in the compiler. Another advantage of the pattern's independence is that converting an `EarlyLintPass` lint into a `LatePassLint` wouldn't require rewriting the whole pattern matching code. In fact, the pattern might work just fine without any adaptions.
 
 
 
@@ -627,7 +627,7 @@ Developing such a syntax would also require to maintain a custom parser that is 
 
 In summary, I think that developing such a syntax would introduce a lot of complexity to solve a relatively minor problem.
 
-The issue of users not knowing about the *PatternTree* structure could be solved by a tool that, given a rust program, generates a pattern that matches only this program (similar to the clippy author lint).
+The issue of users not knowing about the *PatternTree* structure could be solved by a tool that, given a rust program, generates a pattern that matches only this program (similar to the Clippy author lint).
 
 For some simple cases (like the first example above), it might be possible to successfully mix Rust and pattern syntax. This space could be further explored in a future extension.
 
@@ -636,7 +636,7 @@ For some simple cases (like the first example above), it might be possible to su
 
 The pattern syntax is heavily inspired by regular expressions (repetitions, alternatives, sequences, ...).
 
-From what I've seen until now, other linters also implement lints that directly work on syntax tree data structures, just like clippy does currently. I would therefore consider the pattern syntax to be *new*, but please correct me if I'm wrong.
+From what I've seen until now, other linters also implement lints that directly work on syntax tree data structures, just like Clippy does currently. I would therefore consider the pattern syntax to be *new*, but please correct me if I'm wrong.
 
 # Unresolved questions
 [unresolved-questions]: #unresolved-questions
@@ -761,7 +761,7 @@ Additionally, common patterns like `expr_or_semi` could be shared between differ
 
 Another improvement could be to create a tool that, given some valid Rust syntax, generates a pattern that matches this syntax exactly. This would make starting to write a pattern easier. A user could take a look at the patterns generated for a couple of Rust code examples and use that information to write a pattern that matches all of them.
 
-This is similar to clippy's author lint.
+This is similar to Clippy's author lint.
 
 #### Supporting other syntaxes
 
@@ -788,7 +788,7 @@ pattern!{
 }
 ```
 
-In the future, clippy could use this system to also provide lints for custom syntaxes like those found in macros.
+In the future, Clippy could use this system to also provide lints for custom syntaxes like those found in macros.
 
 # Final Note
 
