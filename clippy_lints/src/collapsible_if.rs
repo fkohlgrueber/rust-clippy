@@ -12,7 +12,6 @@
 //!
 //! This lint is **warn** by default
 
-use if_chain::if_chain;
 use rustc::lint::{EarlyContext, EarlyLintPass, LintArray, LintPass};
 use rustc::{declare_lint_pass, declare_tool_lint};
 use syntax::ast;
@@ -73,22 +72,75 @@ declare_clippy_lint! {
 
 declare_lint_pass!(CollapsibleIf => [COLLAPSIBLE_IF]);
 
-impl EarlyLintPass for CollapsibleIf {
-    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
-        if !expr.span.from_expansion() {
-            check_if(cx, expr)
-        }
-    }
+use pattern::pattern;
+use pattern_func_lib::expr_or_semi;
+
+pattern!{
+    pat_if_without_else: Expr = 
+        If(
+            _#check,
+            Block(
+                expr_or_semi( If(_#check_inner, _#content, ())#inner )
+            )#then, 
+            ()
+        )
 }
 
-fn check_if(cx: &EarlyContext<'_>, expr: &ast::Expr) {
-    if let ast::ExprKind::If(check, then, else_) = &expr.node {
-        if let Some(else_) = else_ {
-            check_collapsible_maybe_if_let(cx, else_);
-        } else if let ast::ExprKind::Let(..) = check.node {
-            // Prevent triggering on `if let a = b { if c { .. } }`.
-        } else {
-            check_collapsible_no_if_let(cx, expr, check, then);
+pattern!{
+    pat_if_else: Expr = 
+        If(
+            _, 
+            _, 
+            Block_(
+                Block(
+                    expr_or_semi(If(_, _, _?)#else_)
+                )#block_inner
+            )#block
+        )
+}
+
+impl EarlyLintPass for CollapsibleIf {
+    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
+        if expr.span.from_expansion() {
+            return;
+        }
+
+        if let Some(result) = pat_if_without_else(expr) {
+            // FIXME: this should be part of the pattern, but requires negation of patterns...
+            if let ast::ExprKind::Let(..) = result.check.node { return; }
+            if let ast::ExprKind::Let(..) = result.check_inner.node { return; }
+            
+            if !block_starts_with_comment(cx, result.then) && expr.span.ctxt() == result.inner.span.ctxt() {
+                span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
+                    let lhs = Sugg::ast(cx, result.check, "..");
+                    let rhs = Sugg::ast(cx, result.check_inner, "..");
+                    db.span_suggestion(
+                        expr.span,
+                        "try",
+                        format!(
+                            "if {} {}",
+                            lhs.and(&rhs),
+                            snippet_block(cx, result.content.span, ".."),
+                        ),
+                        Applicability::MachineApplicable, // snippet
+                    );
+                });
+            }
+        }
+        
+        if let Some(result) = pat_if_else(expr) {
+            if !block_starts_with_comment(cx, result.block_inner) && !result.else_.span.from_expansion() {
+                let mut applicability = Applicability::MachineApplicable;
+                span_lint_and_sugg(
+                    cx,
+                    COLLAPSIBLE_IF,
+                    result.block.span,
+                    "this `else { if .. }` block can be collapsed",
+                    "try",
+                    snippet_block_with_applicability(cx, result.else_.span, "..", &mut applicability).into_owned(),
+                    applicability,
+                );
+            }
         }
     }
 }
@@ -99,72 +151,4 @@ fn block_starts_with_comment(cx: &EarlyContext<'_>, expr: &ast::Block) -> bool {
         .trim_start_matches(|c: char| c.is_whitespace() || c == '{')
         .to_owned();
     trimmed_block_text.starts_with("//") || trimmed_block_text.starts_with("/*")
-}
-
-fn check_collapsible_maybe_if_let(cx: &EarlyContext<'_>, else_: &ast::Expr) {
-    if_chain! {
-        if let ast::ExprKind::Block(ref block, _) = else_.node;
-        if !block_starts_with_comment(cx, block);
-        if let Some(else_) = expr_block(block);
-        if !else_.span.from_expansion();
-        if let ast::ExprKind::If(..) = else_.node;
-        then {
-            let mut applicability = Applicability::MachineApplicable;
-            span_lint_and_sugg(
-                cx,
-                COLLAPSIBLE_IF,
-                block.span,
-                "this `else { if .. }` block can be collapsed",
-                "try",
-                snippet_block_with_applicability(cx, else_.span, "..", &mut applicability).into_owned(),
-                applicability,
-            );
-        }
-    }
-}
-
-fn check_collapsible_no_if_let(cx: &EarlyContext<'_>, expr: &ast::Expr, check: &ast::Expr, then: &ast::Block) {
-    if_chain! {
-        if !block_starts_with_comment(cx, then);
-        if let Some(inner) = expr_block(then);
-        if let ast::ExprKind::If(ref check_inner, ref content, None) = inner.node;
-        then {
-            if let ast::ExprKind::Let(..) = check_inner.node {
-                // Prevent triggering on `if c { if let a = b { .. } }`.
-                return;
-            }
-
-            if expr.span.ctxt() != inner.span.ctxt() {
-                return;
-            }
-            span_lint_and_then(cx, COLLAPSIBLE_IF, expr.span, "this if statement can be collapsed", |db| {
-                let lhs = Sugg::ast(cx, check, "..");
-                let rhs = Sugg::ast(cx, check_inner, "..");
-                db.span_suggestion(
-                    expr.span,
-                    "try",
-                    format!(
-                        "if {} {}",
-                        lhs.and(&rhs),
-                        snippet_block(cx, content.span, ".."),
-                    ),
-                    Applicability::MachineApplicable, // snippet
-                );
-            });
-        }
-    }
-}
-
-/// If the block contains only one expression, return it.
-fn expr_block(block: &ast::Block) -> Option<&ast::Expr> {
-    let mut it = block.stmts.iter();
-
-    if let (Some(stmt), None) = (it.next(), it.next()) {
-        match stmt.node {
-            ast::StmtKind::Expr(ref expr) | ast::StmtKind::Semi(ref expr) => Some(expr),
-            _ => None,
-        }
-    } else {
-        None
-    }
 }
