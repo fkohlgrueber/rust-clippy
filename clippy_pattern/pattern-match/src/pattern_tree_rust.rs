@@ -7,6 +7,10 @@ gen_pattern_tree!{
         | Array(Expr*)
         | Block_(BlockType)
         | If(Expr, BlockType, Expr?)
+        | Continue(STR?<>Label)
+        | While(Expr, BlockType, STR?<>Label)
+        | ForLoop(Expr, BlockType, STR?<>Label)
+        | Loop(BlockType, STR?<>Label)
 
     Lit = Char(char)
         | Bool(bool)

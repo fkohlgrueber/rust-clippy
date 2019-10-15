@@ -7,3 +7,11 @@ pattern_func!{
         Expr($expr) | Semi($expr)
     }
 }
+
+pattern_func!{
+    fn some_loop($body, $label) {
+        Loop($body, $label) 
+        | ForLoop(_, $body, $label) 
+        | While(_, $body, $label)
+    }
+}

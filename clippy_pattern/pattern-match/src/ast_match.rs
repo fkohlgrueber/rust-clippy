@@ -17,6 +17,7 @@ impl<'o> MatchAssociations<'o> for Ast {
     type IntTy = ast::IntTy;
     type UintTy = ast::UintTy;
     type Symbol = syntax::source_map::symbol::Symbol;
+    type Label = ast::Label;
 }
 
 derive_is_match_impl!{
@@ -25,6 +26,10 @@ derive_is_match_impl!{
         Block_(b) <> Block(b, _label)
         Array(a) <> Array(a)
         If(check, then, else_) <> If(check, then, else_)
+        Continue(label) <> Continue(label)
+        While(cond, block, label) <> While(cond, block, label)
+        ForLoop(cond, block, label) <> ForLoop(_pat, cond, block, label)
+        Loop(block, label) <> Loop(block, label)
     }
 }
 
@@ -41,6 +46,13 @@ derive_is_match_impl!{
         Bool(i) <> Bool(i)
         Int(n, suffix) <> Int(n, suffix)
         Str(s) <> Str(s, _style)
+    }
+}
+
+impl<'cx, 'o, Cx: Clone> IsMatch<'cx, 'o, Cx, ast::Label> for &'static str
+{
+    fn is_match(&self, cx: &'cx mut Cx, other: &ast::Label) -> (bool, &'cx mut Cx) {
+        self.is_match(cx, &other.ident.name)
     }
 }
 
@@ -108,6 +120,7 @@ impl<'cx, 'o, Cx: Clone> IsMatch<'cx, 'o, Cx, ast::Lit> for Lit<'cx, 'o, Cx, Ast
 }
 
 impl ReduceSelf for syntax::ast::Stmt {}
+impl ReduceSelf for syntax::ast::Label {}
 
 impl<T> Reduce for syntax::ptr::P<T> {
     type Target = T;
