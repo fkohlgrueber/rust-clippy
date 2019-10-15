@@ -1,0 +1,25 @@
+[workspace]
+
+members = [
+    "common",
+    
+    "is-match-macro",
+    
+    "pattern-tree",
+    "pattern-tree/pattern-tree-macro",
+    
+    "pattern-match",
+    
+    "pattern-parse",
+
+    "pattern",
+    "pattern/pattern-macro",
+
+    "pattern-macro-gen",
+    "pattern-macro-gen/pattern-macro-gen-macro",
+    
+    "pattern-func",
+    "pattern-func/pattern-func-macro",
+
+    "pattern-func-lib",
+]

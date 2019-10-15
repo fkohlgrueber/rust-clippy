@@ -1,0 +1,15 @@
+[package]
+name = "pattern-tree"
+version = "0.1.0"
+authors = ["Felix Kohlgrüber <felix.kohlgrueber@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+lazy_static = "1.4.0"
+
+common = { path = "../common" }
+pattern-tree-macro = { path = "pattern-tree-macro" }
+
+[lib]
+path = "src/pattern_tree.rs"
+doctest = false

@@ -1,0 +1,15 @@
+[package]
+name = "pattern-parse"
+version = "0.1.0"
+authors = ["Felix Kohlgrüber <felix.kohlgrueber@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+syn = {version = "1.0", features = ["full", "extra-traits"]}
+proc-macro2 = "1.0"
+
+common = { path = "../common" }
+
+[lib]
+path = "src/pattern_parse.rs"
+doctest = false

@@ -1,0 +1,16 @@
+[package]
+name = "pattern-func"
+version = "0.1.0"
+authors = ["Felix Kohlgrüber <felix.kohlgrueber@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+itertools = "0.8.0"
+proc-macro2 = "1.0"
+quote = "1.0"
+
+pattern-func-macro = { path = "pattern-func-macro" }
+
+[lib]
+path = "src/pattern_func.rs"
+doctest = false

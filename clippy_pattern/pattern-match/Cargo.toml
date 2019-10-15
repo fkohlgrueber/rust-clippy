@@ -1,0 +1,17 @@
+[package]
+name = "pattern-match"
+version = "0.1.0"
+authors = ["Felix Kohlgrüber <felix.kohlgrueber@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+itertools = "0.8.0"
+syn = {version = "1.0", features = ["full", "extra-traits"]}
+
+pattern-tree = { path = "../pattern-tree" }
+pattern-parse = { path = "../pattern-parse" }
+is-match-macro = { path = "../is-match-macro" }
+
+[lib]
+path = "src/pattern_match.rs"
+doctest = false

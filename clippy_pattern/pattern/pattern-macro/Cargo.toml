@@ -1,0 +1,15 @@
+[package]
+name = "pattern-macro"
+version = "0.1.0"
+authors = ["Felix Kohlgrüber <felix.kohlgrueber@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+pattern-macro-gen = { path = "../../pattern-macro-gen" }
+pattern-match = { path = "../../pattern-match" }
+
+[lib]
+proc-macro = true
+path = "pattern_macro.rs"
+doctest = false
